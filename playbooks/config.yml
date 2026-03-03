@@ -1,0 +1,90 @@
+---
+# Configuration Verification Playbook
+# Verifies system configuration, packages, and udev rules
+# Usage: ansible-playbook playbooks/config.yml -i inventory/hosts.yml
+
+- name: Verify System Configuration
+  hosts: all
+  gather_facts: yes
+  become: yes
+  
+  tasks:
+    - name: Check Python version
+      command: python3 --version
+      register: python_version
+      changed_when: false
+      
+    - name: Check if udev rules are deployed
+      stat:
+        path: /etc/udev/rules.d/99-usb-serial.rules
+      register: udev_rules_file
+      
+    - name: Read udev rules content
+      slurp:
+        src: /etc/udev/rules.d/99-usb-serial.rules
+      register: udev_rules_content
+      when: udev_rules_file.stat.exists
+      
+    - name: Check available USB serial devices
+      shell: ls -la /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "No USB devices found"
+      register: usb_devices
+      changed_when: false
+      failed_when: false
+      
+    - name: Check for symlinks
+      shell: ls -la /dev/tty* | grep -E "ttyESP32|ttyPICO|ttyAUTO" || echo "No symlinks found"
+      register: usb_symlinks
+      changed_when: false
+      failed_when: false
+      
+    - name: Check pending security updates
+      shell: apt list --upgradable 2>/dev/null | grep -i security | wc -l
+      register: security_updates
+      changed_when: false
+      failed_when: false
+      
+    - name: Check GitHub Actions runner (if exists)
+      stat:
+        path: /opt/actions-runner
+      register: runner_dir
+      
+    - name: Get runner service status
+      shell: systemctl list-units --type=service --all | grep "actions.runner" | awk '{print $1}'
+      register: runner_service
+      changed_when: false
+      failed_when: false
+      when: runner_dir.stat.exists
+      
+    - name: "════════════════════════════════════════════════"
+      debug:
+        msg: "⚙️  CONFIGURATION CHECK: {{ inventory_hostname }}"
+    
+    - name: Display Python version
+      debug:
+        msg: "🐍 Python: {{ python_version.stdout }}"
+    
+    - name: Display udev rules status
+      debug:
+        msg: "📋 Udev Rules: {{ udev_rules_file.stat.exists | ternary('✅ Deployed', '❌ Missing') }}"
+    
+    - name: Display USB devices
+      debug:
+        msg:
+          - "🔌 USB Devices:"
+          - "{{ usb_devices.stdout }}"
+    
+    - name: Display USB symlinks
+      debug:
+        msg:
+          - "🔗 USB Symlinks:"
+          - "{{ usb_symlinks.stdout }}"
+    
+    - name: Display security updates
+      debug:
+        msg: "🔒 Security Updates Pending: {{ security_updates.stdout }}"
+    
+    - name: Display runner status
+      debug:
+        msg: 
+          - "🤖 GitHub Actions Runner: {{ runner_dir.stat.exists | ternary('✅ Installed', '❌ Not installed') }}"
+          - "{% if runner_service.stdout %}  └─ Service: {{ runner_service.stdout }}{% endif %}"

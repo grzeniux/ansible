@@ -1,0 +1,73 @@
+---
+# System Health Check Playbook
+# Checks connectivity, uptime, disk space, memory, and services
+# Usage: ansible-playbook playbooks/status.yml -i inventory/hosts.yml
+
+- name: System Health Check
+  hosts: all
+  gather_facts: yes
+  
+  tasks:
+    - name: Test connectivity
+      ping:
+      
+    - name: Get system uptime
+      command: uptime -p
+      register: system_uptime
+      changed_when: false
+      
+    - name: Check disk space
+      command: df -h /
+      register: disk_space
+      changed_when: false
+      
+    - name: Check memory usage
+      command: free -h
+      register: memory_usage
+      changed_when: false
+      
+    - name: Check CPU load
+      command: cat /proc/loadavg
+      register: cpu_load
+      changed_when: false
+      
+    - name: Check running services
+      systemd:
+        name: "{{ item }}"
+      register: service_status
+      failed_when: false
+      loop:
+        - ssh
+        - systemd-resolved
+      
+    - name: "════════════════════════════════════════════════"
+      debug:
+        msg: "📊 SYSTEM HEALTH: {{ inventory_hostname }} ({{ ansible_host }})"
+    
+    - name: Display system info
+      debug:
+        msg:
+          - "🖥️  System Info:"
+          - "  ├─ OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "  ├─ Kernel: {{ ansible_kernel }}"
+          - "  └─ Arch: {{ ansible_architecture }}"
+    
+    - name: Display uptime
+      debug:
+        msg: "⏱️  Uptime: {{ system_uptime.stdout }}"
+    
+    - name: Display CPU load
+      debug:
+        msg: "📈 CPU Load: {{ cpu_load.stdout }}"
+    
+    - name: Display disk usage
+      debug:
+        msg:
+          - "💾 Disk Usage:"
+          - "{{ disk_space.stdout }}"
+    
+    - name: Display memory usage
+      debug:
+        msg:
+          - "🧠 Memory Usage:"
+          - "{{ memory_usage.stdout }}"
