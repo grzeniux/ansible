@@ -1,0 +1,58 @@
+name: System Health Check
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    name: Check System Health
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Ansible
+        run: |
+          pip install ansible paramiko
+      
+      - name: Create SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.RPI_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H ${{ secrets.RPI4B_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+      
+      - name: Get system status
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: false
+        run: |
+          ansible-playbook -i inventory/hosts.yml playbooks/status.yml -v
+        continue-on-error: true
+      
+      - name: Verify configuration
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: false
+        run: |
+          ansible-playbook -i inventory/hosts.yml playbooks/config.yml -v
+        continue-on-error: true
+      
+      - name: Create health report
+        run: |
+          echo "## System Health Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Generated: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- RPi: Checking system health" >> $GITHUB_STEP_SUMMARY
+          echo "- RPi4B: Checking system health" >> $GITHUB_STEP_SUMMARY
