@@ -1,0 +1,16 @@
+---
+project_name: automotive
+device_type: automotive_controller
+
+usb_udev_rules:
+  - comment: "ESP32 DevKit"
+    serial: "0001"
+    vendor: "10c4"
+    product: "ea60"
+    symlink: "ttyESP32"
+
+  - comment: "Raspberry Pi"
+    serial: "E6616407E3226E2F"
+    vendor: "2e8a"
+    product: "000a"
+    symlink: "ttyPICO"

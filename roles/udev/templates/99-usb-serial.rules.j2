@@ -1,0 +1,9 @@
+# Managed by Ansible - {{ inventory_hostname }}
+# Group: {{ group_names | join(', ') }}
+# Generated: {{ ansible_date_time.iso8601 }}
+
+{% for rule in usb_udev_rules %}
+# {{ rule.comment }}
+SUBSYSTEM=="tty", ATTRS{idVendor}=="{{ rule.vendor }}", ATTRS{idProduct}=="{{ rule.product }}", ATTRS{serial}=="{{ rule.serial }}", SYMLINK+="{{ rule.symlink }}", MODE="0666"
+
+{% endfor %}

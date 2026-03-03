@@ -1,0 +1,55 @@
+---
+# Scan USB Serial devices on remote hosts
+# Usage: ansible-playbook scan-usb.yml -i inventory/hosts.yml --ask-pass
+
+- name: Scan USB Serial Devices on hosts
+  hosts: all
+  gather_facts: no
+  
+  tasks:
+    - name: Copy scan script to host
+      copy:
+        src: scripts/list-usb-serial.sh
+        dest: /tmp/list-usb-serial.sh
+        mode: '0755'
+    
+    - name: Run USB device scanner
+      command: /tmp/list-usb-serial.sh
+      register: usb_scan_output
+      changed_when: false
+    
+    - name: Display USB devices
+      debug:
+        msg: "{{ usb_scan_output.stdout_lines }}"
+    
+    - name: Clean up temporary script
+      file:
+        path: /tmp/list-usb-serial.sh
+        state: absent
+# Scan USB Serial devices on remote hosts
+# Usage: ansible-playbook scan-usb.yml -i inventory/hosts.yml --ask-pass
+
+- name: Scan USB Serial Devices on hosts
+  hosts: all
+  gather_facts: no
+  
+  tasks:
+    - name: Copy scan script to host
+      copy:
+        src: scripts/list-usb-serial.sh
+        dest: /tmp/list-usb-serial.sh
+        mode: '0755'
+    
+    - name: Run USB device scanner
+      command: /tmp/list-usb-serial.sh
+      register: usb_scan_output
+      changed_when: false
+    
+    - name: Display USB devices
+      debug:
+        msg: "{{ usb_scan_output.stdout_lines }}"
+    
+    - name: Clean up temporary script
+      file:
+        path: /tmp/list-usb-serial.sh
+        state: absent

@@ -1,0 +1,10 @@
+---
+# Main provisioning playbook
+# Deploy udev rules to all hosts based on group_vars configuration
+# Usage: ansible-playbook site.yml -i inventory/hosts.yml --ask-pass --ask-become-pass
+
+- name: Deploy USB Serial Device Rules
+  hosts: all
+  become: yes
+  roles:
+    - udev

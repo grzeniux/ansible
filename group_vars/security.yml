@@ -1,0 +1,10 @@
+---
+project_name: security
+device_type: security_sniffer
+
+usb_udev_rules:
+  - comment: "nRF Sniffer BLE"
+    serial: "446645BE15C30F11"
+    vendor: "1915"
+    product: "522a"
+    symlink: "ttyBLE"

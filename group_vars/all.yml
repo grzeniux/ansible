@@ -1,0 +1,10 @@
+---
+timezone: Europe/Warsaw
+ntp_enabled: true
+
+common_packages:
+  - git
+  - curl
+  - wget
+  - htop
+  - python3-pip

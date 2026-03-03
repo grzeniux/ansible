@@ -1,0 +1,118 @@
+---
+- name: Check GitHub Actions Runner Status
+  hosts: all
+  become: yes
+  vars:
+    runner_install_dir: "/opt/actions-runner"
+
+  tasks:
+    - name: Check if runner directory exists
+      ansible.builtin.stat:
+        path: "{{ runner_install_dir }}"
+      register: runner_dir
+
+    - name: Display warning if runner not installed
+      ansible.builtin.debug:
+        msg: "⚠️  GitHub Actions runner nie jest zainstalowany na {{ ansible_hostname }}"
+      when: not runner_dir.stat.exists
+
+    - name: Find runner service name
+      ansible.builtin.shell: systemctl list-units --type=service --all | grep "actions.runner" | awk '{print $1}'
+      register: runner_service_name
+      changed_when: false
+      failed_when: false
+      when: runner_dir.stat.exists
+
+    - name: Get runner service status
+      ansible.builtin.systemd:
+        name: "{{ runner_service_name.stdout }}"
+      register: runner_service
+      when: 
+        - runner_dir.stat.exists
+        - runner_service_name.stdout != ""
+
+    - name: Display service status
+      ansible.builtin.debug:
+        msg: |
+          Host: {{ ansible_hostname }}
+          Service: {{ runner_service_name.stdout }}
+          Active: {{ runner_service.status.ActiveState }}
+          Status: {{ runner_service.status.SubState }}
+          Running since: {{ runner_service.status.ActiveEnterTimestamp | default('N/A') }}
+          Main PID: {{ runner_service.status.MainPID | default('N/A') }}
+      when:
+        - runner_dir.stat.exists
+        - runner_service_name.stdout != ""
+
+    - name: Get detailed service info
+      ansible.builtin.shell: systemctl status {{ runner_service_name.stdout }} --no-pager -l
+      register: service_details
+      changed_when: false
+      when:
+        - runner_dir.stat.exists
+        - runner_service_name.stdout != ""
+
+    - name: Display detailed status
+      ansible.builtin.debug:
+        var: service_details.stdout_lines
+      when:
+        - runner_dir.stat.exists
+        - runner_service_name.stdout != ""
+
+    - name: Check if runner process is active
+      ansible.builtin.shell: pgrep -f "Runner.Listener" > /dev/null && echo "ACTIVE" || echo "NOT_RUNNING"
+      register: runner_process
+      changed_when: false
+      when: runner_dir.stat.exists
+
+    - name: Display process status
+      ansible.builtin.debug:
+        msg: "Runner process: {{ runner_process.stdout }}"
+      when: runner_dir.stat.exists
+
+    - name: Check if runner is executing workflow
+      ansible.builtin.shell: |
+        if [ -d "{{ runner_install_dir }}/_diag" ]; then
+          latest_log=$(ls -t {{ runner_install_dir }}/_diag/Runner_*.log 2>/dev/null | head -1)
+          if [ -n "$latest_log" ]; then
+            # Sprawdź ostatni status z loga
+            last_status=$(tail -50 "$latest_log" | grep -E "Listening for Jobs|Job assignment received" | tail -1)
+            if echo "$last_status" | grep -q "Job assignment received"; then
+              echo "1"
+            else
+              echo "0"
+            fi
+          else
+            echo "0"
+          fi
+        else
+          echo "0"
+        fi
+      register: active_jobs
+      changed_when: false
+      failed_when: false
+      when:
+        - runner_dir.stat.exists
+        - runner_service_name.stdout != ""
+
+    - name: Display active jobs
+      ansible.builtin.debug:
+        msg: "Workflow w trakcie: {{ active_jobs.stdout }}"
+      when:
+        - runner_dir.stat.exists
+        - runner_service_name.stdout != ""
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "═══════════════════════════════════════"
+          - "📊 Podsumowanie dla {{ ansible_hostname }}"
+          - "═══════════════════════════════════════"
+          - "✅ Runner zainstalowany: {{ runner_dir.stat.exists }}"
+          - "✅ Service aktywny: {{ runner_service.status.ActiveState == 'active' }}"
+          - "✅ Process działa: {{ runner_process.stdout == 'ACTIVE' }}"
+          - "{% if active_jobs.stdout == '0' %}💤 Status: IDLE (czeka na joby){% else %}🔄 Status: BUSY (wykonuje {{ active_jobs.stdout }} job(ów)){% endif %}"
+          - "═══════════════════════════════════════"
+      when:
+        - runner_dir.stat.exists
+        - runner_service_name.stdout != ""
