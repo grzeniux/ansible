@@ -1,6 +1,9 @@
 name: System Health Check
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     # Run every 3 hours
     - cron: '0 */3 * * *'
@@ -19,7 +22,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
       
       - name: Install Ansible
         run: |
